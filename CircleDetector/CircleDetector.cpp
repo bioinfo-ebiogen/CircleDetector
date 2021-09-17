@@ -111,102 +111,24 @@ void printXY(int event, int x, int y, int flags, void* userdata)
     
 }
 
-//카트리지 구역 안의 원 개수와 평균 색깔을 반환하는 함수
-string CatridgeType(Mat CatRegion)
-{
-    //최종 결과인 갯수, 타입
-    int catCount=0;
-    string catColor="";
-
-    //그레이 스케일로 변환
-    Mat catGray;
-    cvtColor(CatRegion, catGray, COLOR_BGR2GRAY);
-
-    //바이너리 이미지로 변환
-    Mat catBin;
-    threshold(catGray, catBin, 30, 255, THRESH_BINARY_INV|THRESH_OTSU);
-
-    //컨투어를 찾음
-    vector<vector<Point>> contours;
-    findContours(catGray, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-
-    //컨투어 내에서, 포인트의 근사 위치를 가져다 놓는다.
-    vector<Point2f> approx;
-    Mat image_result;
-    image_result = catBin.clone();
-
-    for (size_t i = 0; i < contours.size(); i++) 
-    {
-        //contour를 근사화
-        approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true) * 0.005, true);
-
-        int size = approx.size();
-        string figureType = "";
-
-        line(catBin, approx[0], approx[approx.size() - 1], Scalar(0,255,0), 3);
-
-        for (int k = 0; k < size - 1; k++)
-        {
-            line(catBin, approx[k], approx[k+1], Scalar(0, 255, 0), 3);
-        }
-
-        //도형 판정
-        if (isContourConvex(Mat(approx)))
-        {
-            if (size < 3)
-            {
-                cout << "서클" + catCount << endl;
-                figureType += " /Circle";
-                catCount += 1;
-            }
-            else if (size == 4) 
-            {
-                cout << "사각형" + catCount << endl;
-            }
-            else 
-            {
-                cout << "서클 아님" << endl;
-                figureType += " /NotCircle";
-            }
-
-        }
-        else 
-        {
-            figureType = to_string(approx.size());
-        }
-
-        imshow(figureType, catBin);
-        waitKey(0);
-
-
-        stringstream _count;
-        _count << catCount;
-
-        string ThisFunctionResult = figureType + " & " + _count.str();
-
-        return ThisFunctionResult;
-    }
-
-
-
-
-}
-
 string CatrigdeHough(Mat CatRegion)
 {
     Mat blurred;
     blur(CatRegion, blurred, Size(3, 3));
+    cvtColor(blurred, blurred, COLOR_BGR2GRAY);
 
     cout << blurred.rows << endl;
     vector<Vec3f> circles;
 
-    //잘못된 라이브러리 문제일 수 있음
-    HoughCircles(blurred, circles, HOUGH_GRADIENT, 1, 5, 40, 21, 2, 500);
+    //허프 원 검출 알고리즘을 통해
+    //정해진 구역(카트리지 스티커 구역) 내 원을 검출함
+    HoughCircles(blurred, circles, HOUGH_GRADIENT, 1, 50, 150, 21, 2, 500);
 
     Mat dst;
-    //cvtColor(CatRegion, dst, COLOR_GRAY2BGR);
+    dst = CatRegion.clone();
 
     int count = 0;
+
 
     for (Vec3f c : circles)
     {
@@ -214,14 +136,31 @@ string CatrigdeHough(Mat CatRegion)
         int radius = cvRound(c[2]);
 
         circle(dst, center, radius, Scalar(0, 0, 233), 2, LINE_AA);
+
         count++;
     }
 
-   /* imshow("dst", dst);
-    waitKey(0);*/
+    //서클모양대로 도려내어 Mat에 저장하는 시퀀스 추가
+    //inthecircles.push_back()
+    //center를 중심으로 radius 반경 안에 존재하는 픽셀일 때
+    //이 픽셀의 BGR 값을 저장했다가 mean으로 평균내어 사용
+    //단, 이 때 픽셀이 흰색(픽셀값이 0,0,0) 이면 저장하지 않음
+
+    //픽셀값을 저장할 리스트 
+    list<vector<Vec3f>> inthecircles;
+
+    for (int i = 0; i < count; i++)
+    {
+
+    }
+
+    //imshow("dst", dst);
+    //waitKey(0);
 
     string _count = "";
     _count = to_string(count);
+
+    cout << _count << endl;
 
     return _count;
 }
@@ -339,7 +278,15 @@ int main(int ac, char** av)
     cat = image_origin(Range(10, f_y), Range(10, f_x));
     string CatResult = CatrigdeHough(image_origin);
 
-    printf("RESULT : %s\n", CatResult);
+    if (CatResult.size() <= 0)
+    {
+        cout << "Don't know Catridge type! " << endl;
+    }
+    else
+    {
+        cout << "======= " + CatResult + " ========" << endl;
+    }
+   
 
 #pragma endregion
 
