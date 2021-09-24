@@ -1,5 +1,4 @@
 ﻿// CircleDetector.cpp : 이 파일에는 'main' 함수가 포함됩니다. 거기서 프로그램 실행이 시작되고 종료됩니다.
-//
 #include <iostream>
 #include <thread>
 #include <list>
@@ -111,11 +110,17 @@ void printXY(int event, int x, int y, int flags, void* userdata)
     
 }
 
+//카트리지 구역 내의 원 개수를 반환하는 함수
 string CatrigdeHough(Mat CatRegion)
 {
+
+    //노랑과 같이 색깔이 옅은 경우, 
+    //카트리지에서 원의 개체수를 인지하기 어려운 문제가 발생하므로
+    //이를 해결하기 위해 히스토그램 평활화를 적용
     Mat blurred;
-    blur(CatRegion, blurred, Size(3, 3));
-    cvtColor(blurred, blurred, COLOR_BGR2GRAY);
+    cvtColor(CatRegion, blurred, COLOR_BGR2GRAY);
+    equalizeHist(blurred, blurred);
+    blur(blurred, blurred, Size(3, 3));
 
     cout << blurred.rows << endl;
     vector<Vec3f> circles;
@@ -124,60 +129,69 @@ string CatrigdeHough(Mat CatRegion)
     //정해진 구역(카트리지 스티커 구역) 내 원을 검출함
     HoughCircles(blurred, circles, HOUGH_GRADIENT, 1, 50, 150, 21, 2, 500);
 
-    Mat dst;
-    dst = CatRegion.clone();
+    int circle_count = 0;
 
-    int count = 0;
+#pragma region 검출한 원을 그려내는 부분(선택사항)
+    //Mat dst;
+    //dst = CatRegion.clone();
 
+    //for (Vec3f c : circles)
+    //{
+    //    Point center(cvRound(c[0]), cvRound(c[1]));
+    //    int radius = cvRound(c[2]);
 
-    for (Vec3f c : circles)
+    //    circle(dst, center, radius, Scalar(0, 0, 233), 2, LINE_AA);
+
+    //    circle_count++;
+    //}
+
+    //imshow("dst", dst);
+    //waitKey(0);
+#pragma endregion
+
+#pragma region 카트리지 내의 원에서 색깔을 검출하는 함수
+
+    string color_value;
+    Mat tmp = CatRegion.clone();
+    list<Mat> mean_color_material;
+
+    //원을 포함한 rec을 먼저 얻은 뒤,
+    //원과 mask를 통해 해당 영역을 검출한다.
+    for(Vec3f c : circles)
     {
         Point center(cvRound(c[0]), cvRound(c[1]));
         int radius = cvRound(c[2]);
 
-        circle(dst, center, radius, Scalar(0, 0, 233), 2, LINE_AA);
+        Rect rect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+        Mat roi(tmp, rect);
+        Mat mask(roi.size(), roi.type(), Scalar::all(0));
 
-        count++;
+        circle(mask, Point(radius, radius), radius, Scalar::all(255), -1);
+
+        //최종적으로 얻은 원 구역
+        Mat cropped_circle = roi & mask;
+        mean_color_material.push_back(cropped_circle);
     }
-
-    //서클모양대로 도려내어 Mat에 저장하는 시퀀스 추가
-    //inthecircles.push_back()
-    //center를 중심으로 radius 반경 안에 존재하는 픽셀일 때
-    //이 픽셀의 BGR 값을 저장했다가 mean으로 평균내어 사용
-    //단, 이 때 픽셀이 흰색(픽셀값이 0,0,0) 이면 저장하지 않음
-
-    //픽셀값을 저장할 리스트 
-    list<vector<Vec3f>> inthecircles;
-
-    for (int i = 0; i < count; i++)
-    {
-
-    }
-
-    //imshow("dst", dst);
-    //waitKey(0);
+#pragma endregion
 
     string _count = "";
-    _count = to_string(count);
-
-    cout << _count << endl;
+    _count = to_string(circle_count);
 
     return _count;
 }
+
 
 int main(int ac, char** av)
 {
     
     //테스트용 파일을 읽어와 Mat 변환
     Mat image_origin;
-    image_origin = imread("test/blue_three.png");
+    image_origin = imread("test/yellow_three.png");
 
     //정해진 위치에 테스트 파일이 없을 경우를 대비한 예외처리
     if (image_origin.rows < 0 || image_origin.cols < 0) { cout << "[SYSTEM] Please Check Test file. Test File Error : Null" << endl; }
 
-
 #pragma region  테스트 이미지 내의 원 좌표 식별 함수
-
     /*imshow("image", image_origin);
     setMouseCallback("image", printXY, 0);
 
@@ -186,6 +200,8 @@ int main(int ac, char** av)
    
 #pragma region 검출 좌표들(Contol)
 
+    //테스트 이미지의 크기를 정의
+    //536*824 사이즈의 테스트 이미지 
     int endofimage_x = 536;
     int endofimage_y = 824;
 
@@ -223,7 +239,6 @@ int main(int ac, char** av)
 
     //위의 검출 좌표와 마찬가지로,
     //카트리지 영역 내의 좌표를 (a,b   c,d   e,f) 쌍으로 고정합니다.
-
     int a_x = 20;
     int a_y = 18;
     int b_x = 109;
@@ -239,22 +254,21 @@ int main(int ac, char** av)
     int f_x = 111;
     int f_y = 273;
 
-
 #pragma endregion
 
-    ////오리지널 이미지를 gray 이미지로 변환하여 
-    ////5구획으로 나눔
-    //Mat gray_image;
-    //cvtColor(image_origin, gray_image, COLOR_BGR2GRAY);
+    //오리지널 이미지를 gray 이미지로 변환하여 
+    //5구획으로 나눔
+    Mat gray_image;
+    cvtColor(image_origin, gray_image, COLOR_BGR2GRAY);
 
-    //Mat gray_region;
-    //gray_region = gray_image(Range(0, endofimage_y), Range(0, endofimage_x));
+    Mat gray_region;
+    gray_region = gray_image(Range(0, endofimage_y), Range(0, endofimage_x));
 
-    //Mat region_1 = gray_region(Range(y_1, y_2), Range(x_1, x_2));
-    //Mat region_2 = gray_region(Range(y_3, y_4), Range(x_3, x_4));
-    //Mat region_3 = gray_region(Range(y_5, y_6), Range(x_5, x_6));
-    //Mat region_4 = gray_region(Range(y_7, y_8), Range(x_7, x_8));
-    //Mat region_5 = gray_region(Range(y_9, y_10), Range(x_9, x_10));
+    Mat region_1 = gray_region(Range(y_1, y_2), Range(x_1, x_2));
+    Mat region_2 = gray_region(Range(y_3, y_4), Range(x_3, x_4));
+    Mat region_3 = gray_region(Range(y_5, y_6), Range(x_5, x_6));
+    Mat region_4 = gray_region(Range(y_7, y_8), Range(x_7, x_8));
+    Mat region_5 = gray_region(Range(y_9, y_10), Range(x_9, x_10));
 
 #pragma region RValue 확인 및 콘솔 출력 파트
 
@@ -264,7 +278,7 @@ int main(int ac, char** av)
     //double rValue4 = RValue(region_4);
     //double rValue5 = RValue(region_5);
 
-    /*printf("Circle 1:  %f\n", 255 - rValue1);*/
+    //printf("Circle 1:  %f\n", 255 - rValue1);
     //printf("Circle 2:  %f\n", 255 - rValue2);
     //printf("Circle 3:  %f\n", 255 - rValue3);
     //printf("Circle 4:  %f\n", 255 - rValue4);
@@ -276,7 +290,7 @@ int main(int ac, char** av)
 
     Mat cat;
     cat = image_origin(Range(10, f_y), Range(10, f_x));
-    string CatResult = CatrigdeHough(image_origin);
+    string CatResult = CatrigdeHough(cat);
 
     if (CatResult.size() <= 0)
     {
@@ -284,10 +298,8 @@ int main(int ac, char** av)
     }
     else
     {
-        cout << "======= " + CatResult + " ========" << endl;
+        cout << "Circle_Count : " + CatResult  + "개" << endl;
     }
-   
-
 #pragma endregion
 
 
