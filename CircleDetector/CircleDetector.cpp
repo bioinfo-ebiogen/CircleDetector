@@ -114,6 +114,9 @@ void printXY(int event, int x, int y, int flags, void* userdata)
 string CatrigdeHough(Mat CatRegion)
 {
 
+    //최종 결과물인 색깔 이름
+    string color_name;
+
     //노랑과 같이 색깔이 옅은 경우, 
     //카트리지에서 원의 개체수를 인지하기 어려운 문제가 발생하므로
     //이를 해결하기 위해 히스토그램 평활화를 적용
@@ -153,12 +156,12 @@ string CatrigdeHough(Mat CatRegion)
 
     string color_value;
     Mat tmp = CatRegion.clone();
-    list<Mat> mean_color_material;
+
+    Vec3f c = circles.at(0);
 
     //원을 포함한 rec을 먼저 얻은 뒤,
     //원과 mask를 통해 해당 영역을 검출한다.
-    for(Vec3f c : circles)
-    {
+  
         Point center(cvRound(c[0]), cvRound(c[1]));
         int radius = cvRound(c[2]);
 
@@ -167,15 +170,52 @@ string CatrigdeHough(Mat CatRegion)
         Mat mask(roi.size(), roi.type(), Scalar::all(0));
 
         circle(mask, Point(radius, radius), radius, Scalar::all(255), -1);
-
+    
         //최종적으로 얻은 원 구역
         Mat cropped_circle = roi & mask;
-        mean_color_material.push_back(cropped_circle);
-    }
+        
+        Mat HSV_colorSpace;
+        cvtColor(cropped_circle, HSV_colorSpace, COLOR_BGR2HSV);
+
+        // hsv 컬러공간을 평균내어 Scalar값으로 변환
+        Scalar mean_hsv = mean(HSV_colorSpace);
+
+        //평균값으로만 채운 Mat을 구하고, 이 Mat의 값이 어느 범위에 속하는지 알아내어 
+        //색깔값 반환
+        Mat mean_mat(HSV_colorSpace.rows, HSV_colorSpace.cols, CV_8UC3, Scalar(mean_hsv[0], mean_hsv[1], mean_hsv[2]));
+
+        double mean_temp = mean_hsv[0];
+
+        //blue, green, purple, red, yellow 중에
+        //1개의 값 찾기
+        if (mean_temp >= 22 && mean_temp <= 38) 
+        {
+            color_name = "Yellow";
+        }
+        else if(mean_temp >= 38 && mean_temp <= 75)
+        {
+            color_name = "Green";
+        }
+        else if (mean_temp >= 75 && mean_temp <= 130)
+        {
+            color_name = "Blue";
+        }
+        else if (mean_temp >= 130 && mean_temp <= 160)
+        {
+            color_name = "Purple";
+        }
+        // hsv 공간에서 red의 영역은 시작과 끝에 걸쳐 분포하기 때문에 다음과 같이 2 영역에 해당
+        else if (mean_temp >= 160 && mean_temp <= 179  ||  mean_temp < 22 && mean_temp >= 0)
+        {
+            color_name = "Red";
+        }
+
+    
 #pragma endregion
 
     string _count = "";
-    _count = to_string(circle_count);
+    circle_count = circles.size();
+    _count = to_string(circle_count) + color_name;
 
     return _count;
 }
@@ -186,7 +226,7 @@ int main(int ac, char** av)
     
     //테스트용 파일을 읽어와 Mat 변환
     Mat image_origin;
-    image_origin = imread("test/yellow_three.png");
+    image_origin = imread("test/green_two.png");
 
     //정해진 위치에 테스트 파일이 없을 경우를 대비한 예외처리
     if (image_origin.rows < 0 || image_origin.cols < 0) { cout << "[SYSTEM] Please Check Test file. Test File Error : Null" << endl; }
@@ -264,25 +304,25 @@ int main(int ac, char** av)
     Mat gray_region;
     gray_region = gray_image(Range(0, endofimage_y), Range(0, endofimage_x));
 
-    Mat region_1 = gray_region(Range(y_1, y_2), Range(x_1, x_2));
-    Mat region_2 = gray_region(Range(y_3, y_4), Range(x_3, x_4));
-    Mat region_3 = gray_region(Range(y_5, y_6), Range(x_5, x_6));
-    Mat region_4 = gray_region(Range(y_7, y_8), Range(x_7, x_8));
-    Mat region_5 = gray_region(Range(y_9, y_10), Range(x_9, x_10));
+    Mat region_1 = image_origin(Range(y_1, y_2), Range(x_1, x_2));
+    Mat region_2 = image_origin(Range(y_3, y_4), Range(x_3, x_4));
+    Mat region_3 = image_origin(Range(y_5, y_6), Range(x_5, x_6));
+    Mat region_4 = image_origin(Range(y_7, y_8), Range(x_7, x_8));
+    Mat region_5 = image_origin(Range(y_9, y_10), Range(x_9, x_10));
 
 #pragma region RValue 확인 및 콘솔 출력 파트
 
-    //double rValue1 = RValue(region_1);
-    //double rValue2 = RValue(region_2);
-    //double rValue3 = RValue(region_3);
-    //double rValue4 = RValue(region_4);
-    //double rValue5 = RValue(region_5);
+    double rValue1 = RValue(region_1);
+    double rValue2 = RValue(region_2);
+    double rValue3 = RValue(region_3);
+    double rValue4 = RValue(region_4);
+    double rValue5 = RValue(region_5);
 
-    //printf("Circle 1:  %f\n", 255 - rValue1);
-    //printf("Circle 2:  %f\n", 255 - rValue2);
-    //printf("Circle 3:  %f\n", 255 - rValue3);
-    //printf("Circle 4:  %f\n", 255 - rValue4);
-    //printf("Circle 5:  %f\n", 255 - rValue5);
+    printf("Control 1의 R value :  %f\n", 255 - rValue1);
+    printf("Test 1의 R value :  %f\n", 255 - rValue2);
+    printf("Test 2의 R value :  %f\n", 255 - rValue3);
+    printf("Test 3의 R value :  %f\n", 255 - rValue4);
+    printf("Test 4의 R value :  %f\n", 255 - rValue5);
 
 #pragma endregion 
 

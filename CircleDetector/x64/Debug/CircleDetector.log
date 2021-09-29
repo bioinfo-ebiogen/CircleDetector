@@ -2,4 +2,5 @@
 C:\Ebiogen\CircleDetector_fo\CircleDetector_sending\CircleDetector\CircleDetector.cpp(61,19): warning C4244: 'return': 'unsigned __int64'에서 'double'(으)로 변환하면서 데이터가 손실될 수 있습니다.
 C:\Ebiogen\CircleDetector_fo\CircleDetector_sending\CircleDetector\CircleDetector.cpp(78,18): warning C4101: 'buf' :참조되지 않은 지역 변수입니다.
 C:\Ebiogen\CircleDetector_fo\CircleDetector_sending\CircleDetector\CircleDetector.cpp(95,14): warning C4101: 'buf' :참조되지 않은 지역 변수입니다.
+C:\Ebiogen\CircleDetector_fo\CircleDetector_sending\CircleDetector\CircleDetector.cpp(217,34): warning C4267: '=': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
   CircleDetector.vcxproj -> C:\Ebiogen\CircleDetector_fo\CircleDetector_sending\CircleDetector\x64\Debug\CircleDetector.exe
